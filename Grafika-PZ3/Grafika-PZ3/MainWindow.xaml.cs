@@ -27,6 +27,9 @@ namespace Grafika_PZ3
         List<NodeEntity> nodeEntities = new List<NodeEntity>();
         List<SwitchEntity> switchEntities = new List<SwitchEntity>();
         List<LineEntity> lineEntities = new List<LineEntity>();
+
+        string mouseCaptureCase = "";
+        System.Windows.Point beforeMousePosition;
         public MainWindow()
         {
             InitializeComponent();
@@ -126,6 +129,7 @@ namespace Grafika_PZ3
                 }
             }
 
+            //Remove objects outside map
             for(int i=0; i < substationEntities.Count; i++)
             {
                 if(substationEntities[i].X > 45.2325 && substationEntities[i].Y > 19.793909 &&  substationEntities[i].X < 45.277031 && substationEntities[i].Y < 19.894459)
@@ -181,6 +185,37 @@ namespace Grafika_PZ3
                     lineEntities.Remove(lineEntities[i]);
                 }
             }
+
+            //Scaling
+            double smallestX = 45.2325;
+            double smallestY = 19.793909;
+
+            for (int i = 0; i < substationEntities.Count; i++)
+            {
+                substationEntities[i].X -= smallestX;
+                substationEntities[i].Y -= smallestY;
+            }
+
+            for (int i = 0; i < nodeEntities.Count; i++)
+            {
+                nodeEntities[i].X -= smallestX;
+                nodeEntities[i].Y -= smallestY;
+            }
+
+            for (int i = 0; i < switchEntities.Count; i++)
+            {
+                switchEntities[i].X -= smallestX;
+                switchEntities[i].Y -= smallestY;
+            }
+
+            for (int i = 0; i < lineEntities.Count; i++)
+            {
+                for (int j = 0; j < lineEntities[i].Vertices.Count; j++)
+                {
+                    lineEntities[i].Vertices[j].X -= smallestX;
+                    lineEntities[i].Vertices[j].Y -= smallestY;
+                }
+            }
         }
 
         public static void ToLatLon(double utmX, double utmY, int zoneUTM, out double latitude, out double longitude)
@@ -223,5 +258,71 @@ namespace Grafika_PZ3
             longitude = ((delt * (180.0 / Math.PI)) + s) + diflon;
             latitude = ((lat + (1 + e2cuadrada * Math.Pow(Math.Cos(lat), 2) - (3.0 / 2.0) * e2cuadrada * Math.Sin(lat) * Math.Cos(lat) * (tao - lat)) * (tao - lat)) * (180.0 / Math.PI)) + diflat;
         }
+
+        private void mainViewport_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            /*
+            scale.CenterX = e.GetPosition(mainViewport).X;
+            scale.CenterY = e.GetPosition(mainViewport).Y;
+            */
+
+            scale.CenterX = 5;
+            scale.CenterY = 5;
+
+            if (e.Delta > 0)
+            {
+                scale.ScaleX += 0.2;
+                scale.ScaleY += 0.2;
+                scale.ScaleZ += 0.2;
+            }
+            else
+            {
+                scale.ScaleX -= 0.2;
+                scale.ScaleY -= 0.2;
+                scale.ScaleZ -= 0.2;
+            }
+        }
+
+        private void mainViewport_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if(e.LeftButton == MouseButtonState.Pressed)
+            {
+                mainViewport.CaptureMouse();
+                mouseCaptureCase = "translation";
+                beforeMousePosition = e.GetPosition(mainViewport);
+            }
+
+            if (e.MiddleButton == MouseButtonState.Pressed)
+            {
+                mainViewport.CaptureMouse();
+                mouseCaptureCase = "rotation";
+                beforeMousePosition = e.GetPosition(mainViewport);
+            }
+        }
+
+        private void mainViewport_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            mainViewport.ReleaseMouseCapture();
+        }
+
+        private void mainViewport_MouseMove(object sender, MouseEventArgs e)
+        {
+            if(mainViewport.IsMouseCaptured)
+            {
+                if(mouseCaptureCase == "translation")
+                {
+                    translation.OffsetX += (e.GetPosition(mainViewport).X - beforeMousePosition.X) / 2000;
+                    translation.OffsetY += (beforeMousePosition.Y - e.GetPosition(mainViewport).Y) / 2000;
+                }
+
+                if(mouseCaptureCase == "rotation")
+                {
+                    rotateX.Angle += (e.GetPosition(mainViewport).X - beforeMousePosition.X) / 250;
+                    rotateY.Angle += (e.GetPosition(mainViewport).Y - beforeMousePosition.Y) / 250;
+                }
+            }
+        }
+
+
     }
 }
