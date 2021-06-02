@@ -8,14 +8,14 @@
         Title="MainWindow" Height="450" Width="800">
     <Grid>
         <Button x:Name="LoadButton" Content="Load" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="75" Click="LoadButton_Click"/>
-        <Viewport3D Name="mainViewport" 
+        <Viewport3D Name="mainViewport" ClipToBounds="True"
                     MouseWheel="mainViewport_MouseWheel" 
                     MouseMove="mainViewport_MouseMove"
                     MouseDown="mainViewport_MouseDown"
                     MouseUp="mainViewport_MouseUp">
             <ModelVisual3D>
                 <ModelVisual3D.Content>
-                    <Model3DGroup>
+                    <Model3DGroup x:Name="map3dGroup">
                         <AmbientLight Color="White"></AmbientLight>
                         <GeometryModel3D x:Name="mapModelFront">
                             <GeometryModel3D.Geometry>

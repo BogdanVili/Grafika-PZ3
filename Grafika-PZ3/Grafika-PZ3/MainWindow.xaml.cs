@@ -1,5 +1,6 @@
 ﻿using Grafika_PZ3.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Xml.Linq;
@@ -30,6 +32,18 @@ namespace Grafika_PZ3
 
         string mouseCaptureCase = "";
         System.Windows.Point beforeMousePosition;
+
+        private GeometryModel3D hitgeo;
+
+        private ToolTip toolTip = new ToolTip();
+
+        private ArrayList models = new ArrayList();
+
+        GeometryModel3D changeBackFirst;
+        GeometryModel3D changeBackSecond;
+        DiffuseMaterial changeBackFirstTexture;
+        DiffuseMaterial changeBackSecondTexture;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -64,8 +78,6 @@ namespace Grafika_PZ3
                      }).ToList();
 
 
-
-
             switchEntities = xdoc.Descendants("SwitchEntity")
                      .Select(sw => new SwitchEntity
                      {
@@ -75,6 +87,7 @@ namespace Grafika_PZ3
                          X = (double)sw.Element("X"),
                          Y = (double)sw.Element("Y"),
                      }).ToList();
+
 
             lineEntities = xdoc.Descendants("LineEntity")
                      .Select(line => new LineEntity
@@ -95,26 +108,27 @@ namespace Grafika_PZ3
                          }).ToList()
                      }).ToList();
 
+
             double newX;
             double newY;
 
             foreach (SubstationEntity s in substationEntities)
             {
-                ToLatLon(s.X, s.Y, 34, out newX, out newY);
+                ToLatLon(s.X, s.Y, 34, out newY, out newX);
                 s.X = newX;
                 s.Y = newY;
             }
 
             foreach (NodeEntity n in nodeEntities)
             {
-                ToLatLon(n.X, n.Y, 34, out newX, out newY);
+                ToLatLon(n.X, n.Y, 34, out newY, out newX);
                 n.X = newX;
                 n.Y = newY;
             }
 
             foreach (SwitchEntity s in switchEntities)
             {
-                ToLatLon(s.X, s.Y, 34, out newX, out newY);
+                ToLatLon(s.X, s.Y, 34, out newY, out newX);
                 s.X = newX;
                 s.Y = newY;
             }
@@ -123,20 +137,93 @@ namespace Grafika_PZ3
             {
                 foreach (Models.Point p in l.Vertices)
                 {
-                    ToLatLon(p.X, p.Y, 34, out newX, out newY);
+                    ToLatLon(p.X, p.Y, 34, out newY, out newX);
                     p.X = newX;
                     p.Y = newY;
                 }
             }
 
             //Remove objects outside map
-            for(int i=0; i < substationEntities.Count; i++)
+            for (int i = 0; i < substationEntities.Count; i++)
             {
-                if(substationEntities[i].X > 45.2325 && substationEntities[i].Y > 19.793909 &&  substationEntities[i].X < 45.277031 && substationEntities[i].Y < 19.894459)
+                if(substationEntities[i].X > 19.793909 && substationEntities[i].Y > 45.2325 && substationEntities[i].X < 19.894459 && substationEntities[i].Y < 45.277031)
                 {
                     continue;
                 }
                 else
+                {
+                    substationEntities.Remove(substationEntities[i]);
+                    i--;
+                }
+            }
+
+            for (int i = 0; i < nodeEntities.Count; i++)
+            {
+                if (nodeEntities[i].X > 19.793909 && nodeEntities[i].Y > 45.2325 && nodeEntities[i].X < 19.894459 && nodeEntities[i].Y < 45.277031)
+                {
+                    continue;
+                }
+                else
+                {
+                    nodeEntities.Remove(nodeEntities[i]);
+                    i--;
+                }
+            }
+
+            for (int i = 0; i < switchEntities.Count; i++)
+            {
+                if (switchEntities[i].X > 19.793909 && switchEntities[i].Y > 45.2325 && switchEntities[i].X < 19.894459 && switchEntities[i].Y < 45.277031)
+                {
+                    continue;
+                }
+                else
+                {
+                    switchEntities.Remove(switchEntities[i]);
+                    i--;
+                }
+            }
+
+            for (int i = 0; i < lineEntities.Count; i++)
+            {
+                for(int j = 0; j < lineEntities[i].Vertices.Count; j++)
+                {
+                    if (lineEntities[i].Vertices[j].X > 19.793909 && lineEntities[i].Vertices[j].Y > 45.2325 && lineEntities[i].Vertices[j].X < 19.894459 && lineEntities[i].Vertices[j].Y < 45.277031)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        lineEntities[i].Vertices.Remove(lineEntities[i].Vertices[j]);
+                        j--;
+                    }
+                }
+
+                if(lineEntities[i].Vertices.Count <= 1)
+                {
+                    lineEntities.Remove(lineEntities[i]);
+                    i--;
+                }
+            }
+
+            //Scaling
+            double smallestX = 19.793909;
+            double smallestY = 45.2325;
+
+            double largestX = 19.894459;
+            double largestY = 45.277031;
+
+            double scaleX = (largestX - smallestX) / 10;
+            double scaleY = (largestY - smallestY) / 10;
+
+            for (int i = 0; i < substationEntities.Count; i++)
+            {
+                substationEntities[i].X -= smallestX;
+                substationEntities[i].Y -= smallestY;
+
+                substationEntities[i].X /= scaleX;
+                substationEntities[i].Y /= scaleY;
+
+                if (substationEntities[i].X <= 0 || substationEntities[i].X >= 10 || substationEntities[i].Y <= 0 || substationEntities[i].Y >= 10)
                 {
                     substationEntities.Remove(substationEntities[i]);
                 }
@@ -144,68 +231,20 @@ namespace Grafika_PZ3
 
             for (int i = 0; i < nodeEntities.Count; i++)
             {
-                if (nodeEntities[i].X > 45.2325 && nodeEntities[i].Y > 19.793909 && nodeEntities[i].X < 45.277031 && nodeEntities[i].Y < 19.894459)
-                {
-                    continue;
-                }
-                else
-                {
-                    nodeEntities.Remove(nodeEntities[i]);
-                }
-            }
-
-            for (int i = 0; i < switchEntities.Count; i++)
-            {
-                if (switchEntities[i].X > 45.2325 && switchEntities[i].Y > 19.793909 && switchEntities[i].X < 45.277031 && switchEntities[i].Y < 19.894459)
-                {
-                    continue;
-                }
-                else
-                {
-                    switchEntities.Remove(switchEntities[i]);
-                }
-            }
-
-            for (int i = 0; i < lineEntities.Count; i++)
-            {
-                for(int j=0; j<lineEntities[i].Vertices.Count; j++)
-                {
-                    if (lineEntities[i].Vertices[j].X > 45.2325 && lineEntities[i].Vertices[j].Y > 19.793909 && lineEntities[i].Vertices[j].X < 45.277031 && lineEntities[i].Vertices[j].Y < 19.894459)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        lineEntities[i].Vertices.Remove(lineEntities[i].Vertices[j]);
-                    }
-                }
-
-                if(lineEntities[i].Vertices.Count == 0 || lineEntities[i].Vertices.Count == 1)
-                {
-                    lineEntities.Remove(lineEntities[i]);
-                }
-            }
-
-            //Scaling
-            double smallestX = 45.2325;
-            double smallestY = 19.793909;
-
-            for (int i = 0; i < substationEntities.Count; i++)
-            {
-                substationEntities[i].X -= smallestX;
-                substationEntities[i].Y -= smallestY;
-            }
-
-            for (int i = 0; i < nodeEntities.Count; i++)
-            {
                 nodeEntities[i].X -= smallestX;
                 nodeEntities[i].Y -= smallestY;
+
+                nodeEntities[i].X /= scaleX;
+                nodeEntities[i].Y /= scaleY;
             }
 
             for (int i = 0; i < switchEntities.Count; i++)
             {
                 switchEntities[i].X -= smallestX;
                 switchEntities[i].Y -= smallestY;
+
+                switchEntities[i].X /= scaleX;
+                switchEntities[i].Y /= scaleY;
             }
 
             for (int i = 0; i < lineEntities.Count; i++)
@@ -214,8 +253,19 @@ namespace Grafika_PZ3
                 {
                     lineEntities[i].Vertices[j].X -= smallestX;
                     lineEntities[i].Vertices[j].Y -= smallestY;
+
+                    lineEntities[i].Vertices[j].X /= scaleX;
+                    lineEntities[i].Vertices[j].Y /= scaleY;
+                }
+
+                if(lineEntities[i].Vertices.Count <= 1)
+                {
+                    lineEntities.Remove(lineEntities[i]);
                 }
             }
+
+            DrawCubes();
+            DrawLines();
         }
 
         public static void ToLatLon(double utmX, double utmY, int zoneUTM, out double latitude, out double longitude)
@@ -287,9 +337,34 @@ namespace Grafika_PZ3
         {
             if(e.LeftButton == MouseButtonState.Pressed)
             {
+                if (changeBackFirst != null)
+                {
+                    changeBackFirst.Material = changeBackFirstTexture;
+                }
+
+                if (changeBackSecond != null)
+                {
+                    changeBackSecond.Material = changeBackSecondTexture;
+                }
+
+                toolTip.IsOpen = false;
+
                 mainViewport.CaptureMouse();
                 mouseCaptureCase = "translation";
                 beforeMousePosition = e.GetPosition(mainViewport);
+
+                System.Windows.Point mouseposition = e.GetPosition(mainViewport);
+                Point3D testpoint3D = new Point3D(mouseposition.X, mouseposition.Y, 0);
+                Vector3D testdirection = new Vector3D(mouseposition.X, mouseposition.Y, 10);
+
+                PointHitTestParameters pointparams =
+                         new PointHitTestParameters(mouseposition);
+                RayHitTestParameters rayparams =
+                         new RayHitTestParameters(testpoint3D, testdirection);
+
+                //test for a result in the Viewport3D     
+                hitgeo = null;
+                VisualTreeHelper.HitTest(mainViewport, null, HTResult, pointparams);
             }
 
             if (e.MiddleButton == MouseButtonState.Pressed)
@@ -323,6 +398,434 @@ namespace Grafika_PZ3
             }
         }
 
+        private void DrawCubes()
+        {
+            #region switches
+            foreach (SubstationEntity s in substationEntities)
+            {
+                MeshGeometry3D mesh = new MeshGeometry3D();
 
+                mesh.Positions.Add(new Point3D(s.X, s.Y, 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y, 0.05));
+                mesh.Positions.Add(new Point3D(s.X, s.Y, 0.05 + 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y, 0.05 + 0.05));
+
+                mesh.Positions.Add(new Point3D(s.X, s.Y + 0.05, 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y + 0.05, 0.05));
+                mesh.Positions.Add(new Point3D(s.X, s.Y + 0.05, 0.05 + 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y + 0.05, 0.05 + 0.05));
+
+                for(int i = 0; i < map3dGroup.Children.Count; i++)
+                {
+                    if(map3dGroup.Children[i].Bounds.IntersectsWith(mesh.Bounds))
+                    {
+                        for( int j = 0; j < mesh.Positions.Count; j++)
+                        {
+                            mesh.Positions[j] = new Point3D(mesh.Positions[j].X, mesh.Positions[j].Y, mesh.Positions[j].Z + 0.1);
+                        }
+                    }
+                }
+                //forward face
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(2);
+
+                mesh.TriangleIndices.Add(2);
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(3);
+
+                //down face
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(0);
+
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(1);
+
+                //up face
+                mesh.TriangleIndices.Add(2);
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(6);
+
+                mesh.TriangleIndices.Add(6);
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(7);
+
+                //right face
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(3);
+
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(7);
+
+                //left face
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(6);
+
+                mesh.TriangleIndices.Add(6);
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(2);
+
+                //back face
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(7);
+
+                mesh.TriangleIndices.Add(7);
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(6);
+
+                DiffuseMaterial material = new DiffuseMaterial(new SolidColorBrush(Colors.Yellow));
+
+                GeometryModel3D cube = new GeometryModel3D(mesh, material);
+
+                cube.SetValue(FrameworkElement.TagProperty, s);
+
+                map3dGroup.Children.Add(cube);
+
+                models.Add(cube);
+            }
+            #endregion
+
+            #region nodes
+            foreach (NodeEntity n in nodeEntities)
+            {
+                MeshGeometry3D mesh = new MeshGeometry3D();
+
+                mesh.Positions.Add(new Point3D(n.X, n.Y, 0.05));
+                mesh.Positions.Add(new Point3D(n.X + 0.05, n.Y, 0.05));
+                mesh.Positions.Add(new Point3D(n.X, n.Y, 0.05 + 0.05));
+                mesh.Positions.Add(new Point3D(n.X + 0.05, n.Y, 0.05 + 0.05));
+
+                mesh.Positions.Add(new Point3D(n.X, n.Y + 0.05, 0.05));
+                mesh.Positions.Add(new Point3D(n.X + 0.05, n.Y + 0.05, 0.05));
+                mesh.Positions.Add(new Point3D(n.X, n.Y + 0.05, 0.05 + 0.05));
+                mesh.Positions.Add(new Point3D(n.X + 0.05, n.Y + 0.05, 0.05 + 0.05));
+
+                for (int i = 0; i < map3dGroup.Children.Count; i++)
+                {
+                    if (map3dGroup.Children[i].Bounds.IntersectsWith(mesh.Bounds))
+                    {
+                        for (int j = 0; j < mesh.Positions.Count; j++)
+                        {
+                            mesh.Positions[j] = new Point3D(mesh.Positions[j].X, mesh.Positions[j].Y, mesh.Positions[j].Z + 0.1);
+                        }
+                    }
+                }
+                //forward face
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(2);
+
+                mesh.TriangleIndices.Add(2);
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(3);
+
+                //down face
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(0);
+
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(1);
+
+                //up face
+                mesh.TriangleIndices.Add(2);
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(6);
+
+                mesh.TriangleIndices.Add(6);
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(7);
+
+                //right face
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(3);
+
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(7);
+
+                //left face
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(6);
+
+                mesh.TriangleIndices.Add(6);
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(2);
+
+                //back face
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(7);
+
+                mesh.TriangleIndices.Add(7);
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(6);
+
+                DiffuseMaterial material = new DiffuseMaterial(new SolidColorBrush(Colors.Blue));
+
+                GeometryModel3D cube = new GeometryModel3D(mesh, material);
+
+                cube.SetValue(FrameworkElement.TagProperty, n);
+
+                map3dGroup.Children.Add(cube);
+
+                models.Add(cube);
+            }
+            #endregion
+
+            #region switches
+            foreach (SwitchEntity s in switchEntities)
+            {
+                MeshGeometry3D mesh = new MeshGeometry3D();
+
+                mesh.Positions.Add(new Point3D(s.X, s.Y, 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y, 0.05));
+                mesh.Positions.Add(new Point3D(s.X, s.Y, 0.05 + 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y, 0.05 + 0.05));
+
+                mesh.Positions.Add(new Point3D(s.X, s.Y + 0.05, 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y + 0.05, 0.05));
+                mesh.Positions.Add(new Point3D(s.X, s.Y + 0.05, 0.05 + 0.05));
+                mesh.Positions.Add(new Point3D(s.X + 0.05, s.Y + 0.05, 0.05 + 0.05));
+
+                for (int i = 0; i < map3dGroup.Children.Count; i++)
+                {
+                    if (map3dGroup.Children[i].Bounds.IntersectsWith(mesh.Bounds))
+                    {
+                        for (int j = 0; j < mesh.Positions.Count; j++)
+                        {
+                            mesh.Positions[j] = new Point3D(mesh.Positions[j].X, mesh.Positions[j].Y, mesh.Positions[j].Z + 0.1);
+                        }
+                    }
+                }
+                //forward face
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(2);
+
+                mesh.TriangleIndices.Add(2);
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(3);
+
+                //down face
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(0);
+
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(1);
+
+                //up face
+                mesh.TriangleIndices.Add(2);
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(6);
+
+                mesh.TriangleIndices.Add(6);
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(7);
+
+                //right face
+                mesh.TriangleIndices.Add(1);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(3);
+
+                mesh.TriangleIndices.Add(3);
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(7);
+
+                //left face
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(6);
+
+                mesh.TriangleIndices.Add(6);
+                mesh.TriangleIndices.Add(0);
+                mesh.TriangleIndices.Add(2);
+
+                //back face
+                mesh.TriangleIndices.Add(5);
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(7);
+
+                mesh.TriangleIndices.Add(7);
+                mesh.TriangleIndices.Add(4);
+                mesh.TriangleIndices.Add(6);
+
+                DiffuseMaterial material;
+
+                if(s.Status == "Open")
+                {
+                    material = new DiffuseMaterial(new SolidColorBrush(Colors.Green));
+                }
+                else
+                {
+                    material = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
+                }
+
+                GeometryModel3D cube = new GeometryModel3D(mesh, material);
+
+                cube.SetValue(FrameworkElement.TagProperty, s);
+
+                map3dGroup.Children.Add(cube);
+
+                models.Add(cube);
+            }
+            #endregion
+        }
+
+        private void DrawLines()
+        {
+            foreach(LineEntity l in lineEntities)
+            {
+                for(int i = 0; i < l.Vertices.Count-1; i++)
+                {
+                    MeshGeometry3D mesh = new MeshGeometry3D();
+
+                    mesh.Positions.Add(new Point3D(l.Vertices[i].X, l.Vertices[i].Y, 0.025)); ;
+                    mesh.Positions.Add(new Point3D(l.Vertices[i].X + 0.025, l.Vertices[i].Y, 0.025));
+                    mesh.Positions.Add(new Point3D(l.Vertices[i].X, l.Vertices[i].Y, 0.025 + 0.025));
+                    mesh.Positions.Add(new Point3D(l.Vertices[i].X + 0.025, l.Vertices[i].Y, 0.025 + 0.025));
+
+                    mesh.Positions.Add(new Point3D(l.Vertices[i + 1].X, l.Vertices[i + 1].Y + 0.025, 0.025));
+                    mesh.Positions.Add(new Point3D(l.Vertices[i + 1].X + 0.025, l.Vertices[i + 1].Y + 0.025, 0.025));
+                    mesh.Positions.Add(new Point3D(l.Vertices[i + 1].X, l.Vertices[i + 1].Y + 0.025, 0.025 + 0.025));
+                    mesh.Positions.Add(new Point3D(l.Vertices[i + 1].X + 0.025, l.Vertices[i + 1].Y + 0.025, 0.025 + 0.025));
+
+                    //forward face
+                    mesh.TriangleIndices.Add(0);
+                    mesh.TriangleIndices.Add(1);
+                    mesh.TriangleIndices.Add(2);
+
+                    mesh.TriangleIndices.Add(2);
+                    mesh.TriangleIndices.Add(1);
+                    mesh.TriangleIndices.Add(3);
+
+                    //down face
+                    mesh.TriangleIndices.Add(4);
+                    mesh.TriangleIndices.Add(5);
+                    mesh.TriangleIndices.Add(0);
+
+                    mesh.TriangleIndices.Add(0);
+                    mesh.TriangleIndices.Add(5);
+                    mesh.TriangleIndices.Add(1);
+
+                    //up face
+                    mesh.TriangleIndices.Add(2);
+                    mesh.TriangleIndices.Add(3);
+                    mesh.TriangleIndices.Add(6);
+
+                    mesh.TriangleIndices.Add(6);
+                    mesh.TriangleIndices.Add(3);
+                    mesh.TriangleIndices.Add(7);
+
+                    //right face
+                    mesh.TriangleIndices.Add(1);
+                    mesh.TriangleIndices.Add(5);
+                    mesh.TriangleIndices.Add(3);
+
+                    mesh.TriangleIndices.Add(3);
+                    mesh.TriangleIndices.Add(5);
+                    mesh.TriangleIndices.Add(7);
+
+                    //left face
+                    mesh.TriangleIndices.Add(4);
+                    mesh.TriangleIndices.Add(0);
+                    mesh.TriangleIndices.Add(6);
+
+                    mesh.TriangleIndices.Add(6);
+                    mesh.TriangleIndices.Add(0);
+                    mesh.TriangleIndices.Add(2);
+
+                    //back face
+                    mesh.TriangleIndices.Add(5);
+                    mesh.TriangleIndices.Add(4);
+                    mesh.TriangleIndices.Add(7);
+
+                    mesh.TriangleIndices.Add(7);
+                    mesh.TriangleIndices.Add(4);
+                    mesh.TriangleIndices.Add(6);
+
+                    DiffuseMaterial material = new DiffuseMaterial(new SolidColorBrush(Colors.Gray));
+
+                    GeometryModel3D line = new GeometryModel3D(mesh, material);
+
+                    line.SetValue(FrameworkElement.TagProperty, l);
+
+                    map3dGroup.Children.Add(line);
+
+                    models.Add(line);
+                }
+            }
+        }
+
+        private HitTestResultBehavior HTResult(System.Windows.Media.HitTestResult rawresult)
+        {
+
+            RayHitTestResult rayResult = rawresult as RayHitTestResult;
+            var modelResult = rayResult.ModelHit.GetValue(FrameworkElement.TagProperty);
+
+            if (rayResult != null)
+            {
+                bool gasit = false;
+                for (int i = 0; i < models.Count; i++)
+                {
+                    if ((GeometryModel3D)models[i] == rayResult.ModelHit)
+                    {
+                        hitgeo = (GeometryModel3D)rayResult.ModelHit;
+                        gasit = true;
+                        
+                        if(modelResult is SubstationEntity)
+                        {
+                            toolTip.Content = "ID: " + ((SubstationEntity)modelResult).Id + "\nName: " + ((SubstationEntity)modelResult).Name;
+                            toolTip.IsOpen = true;
+                        }
+                        else if(modelResult is NodeEntity)
+                        {
+                            toolTip.Content = "ID: " + ((NodeEntity)modelResult).Id + "\nName: " + ((NodeEntity)modelResult).Name;
+                            toolTip.IsOpen = true;
+                        }
+                        else if(modelResult is SwitchEntity)
+                        {
+                            toolTip.Content = "ID: " + ((SwitchEntity)modelResult).Id + "\nName: " + ((SwitchEntity)modelResult).Name + "\nStatus: " + ((SwitchEntity)modelResult).Status;
+                            toolTip.IsOpen = true;
+                        }
+                        else if(modelResult is LineEntity)
+                        {
+                            LineEntity l = ((LineEntity)modelResult);
+
+                            GeometryModel3D first = (GeometryModel3D)map3dGroup.Children.FirstOrDefault(node => (node.GetValue(FrameworkElement.TagProperty) as PowerEntity)?.Id == l.FirstEnd);
+                            GeometryModel3D second = (GeometryModel3D)map3dGroup.Children.FirstOrDefault(node => (node.GetValue(FrameworkElement.TagProperty) as PowerEntity)?.Id == l.SecondEnd);
+
+                            if (first != null && second != null)
+                            {
+                                changeBackFirst = first;
+                                changeBackSecond = second;
+                                changeBackFirstTexture = (DiffuseMaterial)first.Material;
+                                changeBackSecondTexture = (DiffuseMaterial)second.Material;
+
+                                first.Material = new DiffuseMaterial(new SolidColorBrush(Colors.Black));
+                                second.Material = new DiffuseMaterial(new SolidColorBrush(Colors.Black));
+                            }
+                        }
+                    }
+                }
+                if (!gasit)
+                {
+                    hitgeo = null;
+                }
+            }
+
+            return HitTestResultBehavior.Stop;
+        }
     }
 }
